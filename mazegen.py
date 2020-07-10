@@ -4,7 +4,6 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
 
 from PyQt5.QtCore import QObject, Qt, pyqtSignal
 from PyQt5.QtGui import QPainter, QFont, QColor, QPen
-import sys
 import random
 
 class Cell:
@@ -66,6 +65,7 @@ class Maze:
             neighbours = [n for n in neighbours if not n.visited]
 
             if len(neighbours) > 0:
+                stack.append(currentCell)
                 selectedNeighbour = random.choice(neighbours)
                 selectedNeighbour.visited = True
 
@@ -140,5 +140,6 @@ if __name__ == "__main__":
     layout.addWidget(mazeWidget)
     window.setLayout(layout)
     window.setGeometry(100, 100, 600, 600)
+    window.setWindowTitle("Mazes")
     window.show()
     app.exec_()
