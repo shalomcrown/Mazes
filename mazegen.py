@@ -1,4 +1,8 @@
-
+#!/usr/bin/python3
+'''
+Author: Shalom Crown
+Licence: GPL3
+'''
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
 
@@ -14,6 +18,8 @@ class Cell:
     SOUTH = 1
     WEST = 2
     NORTH = 3
+    
+    RELATIONSHIP = {EAST : (0, 1), SOUTH : (1, 0), WEST : (0, -1), NORTH : (-1, 0)}
 
     def __init__(self, row, col):
         self.walls = [True] * 4
@@ -49,7 +55,36 @@ class Maze:
         return neighbours
 
 
-    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None):
+    def getNonEdgeCells(self):
+        return [row[1:-1] for row in self.cells[1:-1]]
+    
+    def getNeighbour(self, cell, relationship):
+        rowInc, colInc = Cell.RELATIONSHIP[relationship]
+        return self.cells[cell.row + rowInc][cell.col + colInc]
+    
+    
+    def removeCommonWall(self, cellA, cellB):
+        if cellA.col == cellB.col:
+            if cellA.row < cellB.row:
+                cellA.walls[Cell.SOUTH] = False
+                cellB.walls[Cell.NORTH] = False
+            else:
+                cellA.walls[Cell.NORTH] = False
+                cellB.walls[Cell.SOUTH] = False
+        else:
+            if cellA.col < cellB.col:
+                cellA.walls[Cell.EAST] = False
+                cellB.walls[Cell.WEST] = False
+            else:
+                cellA.walls[Cell.WEST] = False
+                cellB.walls[Cell.EAST] = False        
+    
+    
+    def removeWall(self, cell, wall):
+        self.removeCommonWall(cell, self.getNeighbour(cell, wall))
+
+
+    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None, loops = 0):
         stack = []
         currentCell = self.cells[start[1]][start[0]]
         currentCell.walls[entrance] = False
@@ -72,26 +107,24 @@ class Maze:
                 selectedNeighbour = random.choice(neighbours)
                 selectedNeighbour.visited = True
 
-                if selectedNeighbour.col == currentCell.col:
-                    if selectedNeighbour.row < currentCell.row:
-                        selectedNeighbour.walls[Cell.SOUTH] = False
-                        currentCell.walls[Cell.NORTH] = False
-                    else:
-                        selectedNeighbour.walls[Cell.NORTH] = False
-                        currentCell.walls[Cell.SOUTH] = False
-                else:
-                    if selectedNeighbour.col < currentCell.col:
-                        selectedNeighbour.walls[Cell.EAST] = False
-                        currentCell.walls[Cell.WEST] = False
-                    else:
-                        selectedNeighbour.walls[Cell.WEST] = False
-                        currentCell.walls[Cell.EAST] = False
+                self.removeCommonWall(currentCell, selectedNeighbour)
 
                 stack.append(selectedNeighbour)
 
                 if callback is not None:
                     callback()
 
+        if loops:
+            nonEdge = self.getNonEdgeCells()
+            targets = [cell for row in nonEdge for cell in row]
+            targets = random.sample(targets, loops)
+            for cell in targets:
+                walls = [w for w in cell.walls if w]
+                wallToRemove = random.choice(walls)
+                self.removeWall(cell, wallToRemove)
+                
+                if callback is not None:
+                        callback()
 
 
 
@@ -142,7 +175,9 @@ def update(widget):
     
 def generate(widget):
     generateButton.setEnabled(False)
-    widget.maze.randomizeBacktracker(callback = lambda: update(mazeWidget))
+    widget.maze.initialize()
+    widget.update()
+    widget.maze.randomizeBacktracker(loops = 2, callback = lambda: update(mazeWidget))
     widget.update()
     generateButton.setEnabled(True)
     
