@@ -4,7 +4,10 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
 
 from PyQt5.QtCore import QObject, Qt, pyqtSignal
 from PyQt5.QtGui import QPainter, QFont, QColor, QPen
+
 import random
+import time
+import threading
 
 class Cell:
     EAST = 0
@@ -29,7 +32,7 @@ class Maze:
         self.cells = [[Cell(row, col) for col in range(self.width)] for row in range(self.height)]
 
     def removeMarks(self):
-        for row in cells:
+        for row in self.cells:
             for cell in row:
                 cell.visited = False
 
@@ -46,7 +49,7 @@ class Maze:
         return neighbours
 
 
-    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST):
+    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None):
         stack = []
         currentCell = self.cells[start[1]][start[0]]
         currentCell.walls[entrance] = False
@@ -85,6 +88,9 @@ class Maze:
                         currentCell.walls[Cell.EAST] = False
 
                 stack.append(selectedNeighbour)
+
+                if callback is not None:
+                    callback()
 
 
 
@@ -129,15 +135,31 @@ class MazeWidget(QWidget):
         qp.end()
 
 
+def update(widget):
+    widget.update()
+    time.sleep(0.1)
+    
+    
+def generate(widget):
+    generateButton.setEnabled(False)
+    widget.maze.randomizeBacktracker(callback = lambda: update(mazeWidget))
+    widget.update()
+    generateButton.setEnabled(True)
+    
+    
 
 if __name__ == "__main__":
     app = QApplication([])
     window = QWidget()
     layout = QVBoxLayout()
     maze = Maze(10, 12)
-    maze.randomizeBacktracker()
     mazeWidget = MazeWidget(maze)
     layout.addWidget(mazeWidget)
+    
+    generateButton = QPushButton("Generate")
+    layout.addWidget(generateButton)
+    generateButton.clicked.connect(lambda: threading.Thread(target = lambda: generate(mazeWidget)).start())
+    
     window.setLayout(layout)
     window.setGeometry(100, 100, 600, 600)
     window.setWindowTitle("Mazes")
