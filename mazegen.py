@@ -119,8 +119,10 @@ class Maze:
             targets = [cell for row in nonEdge for cell in row]
             targets = random.sample(targets, loops)
             for cell in targets:
-                walls = [w for w in cell.walls if w]
+                walls = [i for i,w in enumerate(cell.walls) if w]
                 wallToRemove = random.choice(walls)
+                print(f"Removing wall {wallToRemove} in cell {cell.row}, {cell.col}")
+
                 self.removeWall(cell, wallToRemove)
                 
                 if callback is not None:
