@@ -4,9 +4,10 @@ Author: Shalom Crown
 Licence: GPL3
 '''
 
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, \
+    QVBoxLayout, QLabel, QHBoxLayout, QFrame, QLineEdit, QSizePolicy
 
-from PyQt5.QtCore import QObject, Qt, pyqtSignal
+from PyQt5.QtCore import QObject, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QPainter, QFont, QColor, QPen
 
 import random
@@ -84,7 +85,7 @@ class Maze:
         self.removeCommonWall(cell, self.getNeighbour(cell, wall))
 
 
-    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None, loops = 0):
+    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None, loops = 0, finished = None):
         stack = []
         currentCell = self.cells[start[0]][start[1]]
         currentCell.walls[entrance] = False
@@ -128,6 +129,8 @@ class Maze:
                 if callback is not None:
                         callback()
 
+        if finished is not None:
+            finished()
 
 
 class MazeWidget(QWidget):
@@ -137,7 +140,8 @@ class MazeWidget(QWidget):
         self.maze = maze
         self.padding = 10
 
-    def paintEvent(self, e):
+
+    def paintEvent(self, _e):
         qp = QPainter()
         qp.begin(self)
         qp.setPen(QColor(0,0,0))
@@ -177,11 +181,23 @@ def update(widget):
     
 def generate(widget):
     generateButton.setEnabled(False)
+    
+    rows = int(rowsWidget.text())
+    cols = int(colsWidget.text())
+    loops = int(loopsWidget.text())
+
+    widget.maze.height = rows
+    widget.maze.width = cols
     widget.maze.initialize()
     widget.update()
-    widget.maze.randomizeBacktracker(loops = 2, callback = lambda: update(mazeWidget))
+    
+    threading.Thread(target = lambda: \
+             widget.maze.randomizeBacktracker(loops = loops, 
+                                              callback = lambda: update(widget),
+                                              finished = lambda : generateButton.setEnabled(True),
+                                              )).start()
     widget.update()
-    generateButton.setEnabled(True)
+    
     
     
 
@@ -191,11 +207,33 @@ if __name__ == "__main__":
     layout = QVBoxLayout()
     maze = Maze(10, 12)
     mazeWidget = MazeWidget(maze)
+    mazeWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     layout.addWidget(mazeWidget)
     
     generateButton = QPushButton("Generate")
     layout.addWidget(generateButton)
-    generateButton.clicked.connect(lambda: threading.Thread(target = lambda: generate(mazeWidget)).start())
+    generateButton.clicked.connect(lambda: generate(mazeWidget))
+    
+    paramFrame = QFrame()
+    paramFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    hbox = QHBoxLayout()
+
+    
+    hbox.addWidget(QLabel("Rows"))
+    rowsWidget = QLineEdit("10")
+    hbox.addWidget(rowsWidget)
+    
+    hbox.addWidget(QLabel("Cols"))
+    colsWidget = QLineEdit("12")
+    hbox.addWidget(colsWidget)
+    
+    hbox.addWidget(QLabel("Loops"))
+    loopsWidget = QLineEdit("0")
+    hbox.addWidget(loopsWidget)
+    
+    
+    paramFrame.setLayout(hbox)
+    layout.addWidget(paramFrame)
     
     window.setLayout(layout)
     window.setGeometry(100, 100, 600, 600)
