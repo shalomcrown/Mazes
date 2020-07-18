@@ -86,15 +86,15 @@ class Maze:
 
     def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None, loops = 0):
         stack = []
-        currentCell = self.cells[start[1]][start[0]]
+        currentCell = self.cells[start[0]][start[1]]
         currentCell.walls[entrance] = False
         currentCell.visited = True
         stack.append(currentCell)
 
         if finish is None:
-            finish = (self.width - 1, self.height - 1)
+            finish = (self.height - 1, self.width - 1)
 
-        exitCell = self.cells[finish[1]][finish[0]]
+        exitCell = self.cells[finish[0]][finish[1]]
         exitCell.walls[exit] = False
 
         while len(stack):
