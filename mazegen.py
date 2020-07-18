@@ -95,8 +95,13 @@ class Maze:
         if finish is None:
             finish = (self.height - 1, self.width - 1)
 
-        exitCell = self.cells[finish[0]][finish[1]]
-        exitCell.walls[exit] = False
+        self.exitCell = self.cells[finish[0]][finish[1]]
+        self.exitCell.walls[exit] = False
+
+        self.finish = finish
+        self.exit = exit
+        self.start = start
+        self.entrance = entrance
 
         while len(stack):
             currentCell = stack.pop()
@@ -131,6 +136,42 @@ class Maze:
 
         if finished is not None:
             finished()
+
+
+
+    def wallToucher(self, rightHand = True, callback = None, finished = None):
+        self.removeMarks()
+        currentCell = self.cells[self.start[0]][self.start[1]]
+        currentDirection = (self.entrance + 2) % 4
+        currentCell.visited = True
+
+        print(f'exit {self.exitCell.row} {self.exitCell.col}')
+
+        while currentCell.row != self.exitCell.row or currentCell.col != self.exitCell.col:
+            print(f'Cell {currentCell.row} {currentCell.col}')
+            for direction in range(1, -3, -1):
+                tryDirection = (currentDirection + direction) % 4
+                print(f'Curernt {currentDirection} Try {tryDirection} wall {currentCell.walls[tryDirection]}')
+                if not currentCell.walls[tryDirection]:
+                    currentCell = self.getNeighbour(currentCell, tryDirection)
+                    currentDirection = tryDirection
+                    print(f'Selected {currentCell.row} {currentCell.col} direction {currentDirection}')
+                    if currentCell.visited:
+                        print("Already been here")
+                    currentCell.visited = True
+                    if callback is not None:
+                        callback()
+                    break
+
+        print("Finished")
+        if finished is not None:
+            finished()
+
+
+
+
+        
+
 
 
 class MazeWidget(QWidget):
@@ -199,6 +240,12 @@ def generate(widget):
     widget.update()
     
     
+def traverserWallToucher(widget):
+    threading.Thread(target = lambda: \
+             widget.maze.wallToucher(callback = lambda: update(widget),
+                                              finished = lambda : generateButton.setEnabled(True),
+                                              )).start()
+
     
 
 if __name__ == "__main__":
@@ -231,8 +278,12 @@ if __name__ == "__main__":
     loopsWidget = QLineEdit("0")
     hbox.addWidget(loopsWidget)
     
-    
     paramFrame.setLayout(hbox)
+
+    wallToucherButton = QPushButton("Traverse - wall toucher")
+    layout.addWidget(wallToucherButton)
+    wallToucherButton.clicked.connect(lambda: traverserWallToucher(mazeWidget))
+
     layout.addWidget(paramFrame)
     
     window.setLayout(layout)
