@@ -180,9 +180,7 @@ class Maze:
             finished()
 
 
-
-
-        
+      
 
 
 
@@ -257,7 +255,7 @@ class MazeWidget(QWidget):
 
 def update(widget):
     widget.update()
-    time.sleep(0.1)
+    time.sleep(1.0 / (widget.maze.height * widget.maze.width) * 5)
     
     
 def generate(widget):
@@ -281,11 +279,13 @@ def generate(widget):
     
     
 def traverserWallToucher(widget):
+    wallToucherButton.setEnabled(False)
     right = rightLeftWidget.checkState()
     threading.Thread(target = lambda: \
              widget.maze.wallToucher(rightHand=right, callback = lambda: update(widget),
-                                              finished = lambda : generateButton.setEnabled(True),
+                                              finished = lambda : wallToucherButton.setEnabled(True),
                                               )).start()
+    widget.update()
 
     
 
