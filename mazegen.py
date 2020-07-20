@@ -5,7 +5,7 @@ Licence: GPL3
 '''
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, \
-    QVBoxLayout, QLabel, QHBoxLayout, QFrame, QLineEdit, QSizePolicy
+    QVBoxLayout, QLabel, QHBoxLayout, QFrame, QLineEdit, QSizePolicy, QCheckBox
 
 from PyQt5.QtCore import QObject, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QPainter, QFont, QColor, QPen
@@ -24,6 +24,7 @@ class Cell:
 
     def __init__(self, row, col):
         self.walls = [True] * 4
+        self.wallsTraversed = [False] * 4
         self.visited = False
         self.row = row
         self.col = col
@@ -41,6 +42,7 @@ class Maze:
     def removeMarks(self):
         for row in self.cells:
             for cell in row:
+                cell.wallsTraversed = [False] * 4
                 cell.visited = False
 
     def getNeighbours(self, currentCell):
@@ -126,13 +128,14 @@ class Maze:
             targets = random.sample(targets, loops)
             for cell in targets:
                 walls = [i for i,w in enumerate(cell.walls) if w]
-                wallToRemove = random.choice(walls)
-                print(f"Removing wall {wallToRemove} in cell {cell.row}, {cell.col}")
-
-                self.removeWall(cell, wallToRemove)
-                
-                if callback is not None:
-                        callback()
+                if len(walls):
+                    wallToRemove = random.choice(walls)
+                    print(f"Removing wall {wallToRemove} in cell {cell.row}, {cell.col}")
+    
+                    self.removeWall(cell, wallToRemove)
+                    
+                    if callback is not None:
+                            callback()
 
         if finished is not None:
             finished()
@@ -141,17 +144,23 @@ class Maze:
 
     def wallToucher(self, rightHand = True, callback = None, finished = None):
         self.removeMarks()
-        currentCell = self.cells[self.start[0]][self.start[1]]
+        startCell = currentCell = self.cells[self.start[0]][self.start[1]]
         currentDirection = (self.entrance + 2) % 4
         currentCell.visited = True
 
         print(f'exit {self.exitCell.row} {self.exitCell.col}')
+        
+        cellOrder = range(1, -3, -1) if rightHand else range(-1, 3, 1)
 
         while currentCell.row != self.exitCell.row or currentCell.col != self.exitCell.col:
             print(f'Cell {currentCell.row} {currentCell.col}')
-            for direction in range(1, -3, -1):
+            for direction in cellOrder:
                 tryDirection = (currentDirection + direction) % 4
                 print(f'Curernt {currentDirection} Try {tryDirection} wall {currentCell.walls[tryDirection]}')
+
+                if currentCell == startCell and tryDirection == self.entrance:
+                    continue
+
                 if not currentCell.walls[tryDirection]:
                     currentCell = self.getNeighbour(currentCell, tryDirection)
                     currentDirection = tryDirection
@@ -162,6 +171,9 @@ class Maze:
                     if callback is not None:
                         callback()
                     break
+                else:
+                    currentCell.wallsTraversed[tryDirection] = True
+
 
         print("Finished")
         if finished is not None:
@@ -185,7 +197,6 @@ class MazeWidget(QWidget):
     def paintEvent(self, _e):
         qp = QPainter()
         qp.begin(self)
-        qp.setPen(QColor(0,0,0))
         qp.setBrush(QColor(255,0,0))
 
         size = self.size()
@@ -196,21 +207,50 @@ class MazeWidget(QWidget):
             for cellIndex, cell in enumerate(row):
                 cellTopY = self.padding + cellHeight * rowIndex
                 cellLeftX = self.padding + cellWidth * cellIndex
+                
+                traverseNorthExtra = 10
+                traverseSouthExtra = 10
+                traverseEastExtra = 10
+                traverseWestExtra = 10
 
                 if cell.visited:
                     qp.drawEllipse(cellLeftX + cellWidth / 2, cellTopY + cellHeight / 2, 4, 4)
 
+                qp.setPen(QColor(0,0,0))
+
                 if cell.walls[Cell.NORTH]:
                     qp.drawLine(cellLeftX, cellTopY, cellLeftX + cellWidth, cellTopY)
+                    traverseNorthExtra = -10
 
                 if cell.walls[Cell.SOUTH]:
                     qp.drawLine(cellLeftX, cellTopY + cellHeight, cellLeftX + cellWidth, cellTopY + cellHeight)
+                    traverseSouthExtra = -10
 
                 if cell.walls[Cell.WEST]:
                     qp.drawLine(cellLeftX, cellTopY, cellLeftX, cellTopY + cellHeight)
+                    traverseWestExtra = -10
                 
                 if cell.walls[Cell.EAST]:
                     qp.drawLine(cellLeftX + cellWidth, cellTopY, cellLeftX + cellWidth, cellTopY + cellHeight)
+                    traverseEastExtra = -10
+                    
+                qp.setPen(QColor(64,64,255))
+                
+                if cell.wallsTraversed[Cell.NORTH]:
+                    qp.drawLine(cellLeftX - traverseWestExtra, cellTopY + 10, 
+                                        cellLeftX + cellWidth + traverseEastExtra, cellTopY + 10)
+                
+                if cell.wallsTraversed[Cell.SOUTH]:
+                    qp.drawLine(cellLeftX - traverseWestExtra, cellTopY + cellHeight - 10, 
+                                        cellLeftX + cellWidth + traverseEastExtra, cellTopY + cellHeight - 10)
+
+                if cell.wallsTraversed[Cell.WEST]:
+                    qp.drawLine(cellLeftX + 10, cellTopY - traverseNorthExtra, 
+                                cellLeftX + 10, cellTopY + cellHeight + traverseSouthExtra)
+                
+                if cell.wallsTraversed[Cell.EAST]:
+                    qp.drawLine(cellLeftX + cellWidth - 10, cellTopY - traverseNorthExtra, 
+                                cellLeftX + cellWidth - 10, cellTopY + cellHeight + traverseSouthExtra)
 
         qp.end()
 
@@ -241,8 +281,9 @@ def generate(widget):
     
     
 def traverserWallToucher(widget):
+    right = rightLeftWidget.checkState()
     threading.Thread(target = lambda: \
-             widget.maze.wallToucher(callback = lambda: update(widget),
+             widget.maze.wallToucher(rightHand=right, callback = lambda: update(widget),
                                               finished = lambda : generateButton.setEnabled(True),
                                               )).start()
 
@@ -264,7 +305,6 @@ if __name__ == "__main__":
     paramFrame = QFrame()
     paramFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     hbox = QHBoxLayout()
-
     
     hbox.addWidget(QLabel("Rows"))
     rowsWidget = QLineEdit("10")
@@ -279,12 +319,23 @@ if __name__ == "__main__":
     hbox.addWidget(loopsWidget)
     
     paramFrame.setLayout(hbox)
+    layout.addWidget(paramFrame)
+
+
+    wallToucherFrame = QFrame()
+    wallToucherFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    hbox = QHBoxLayout()
+    wallToucherFrame.setLayout(hbox)
 
     wallToucherButton = QPushButton("Traverse - wall toucher")
-    layout.addWidget(wallToucherButton)
+    wallToucherButton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    hbox.addWidget(wallToucherButton)
+    rightLeftWidget = QCheckBox("Turn Right")
+    hbox.addWidget(rightLeftWidget)
+    
     wallToucherButton.clicked.connect(lambda: traverserWallToucher(mazeWidget))
+    layout.addWidget(wallToucherFrame)
 
-    layout.addWidget(paramFrame)
     
     window.setLayout(layout)
     window.setGeometry(100, 100, 600, 600)
