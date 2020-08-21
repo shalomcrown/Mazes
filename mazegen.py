@@ -1,20 +1,19 @@
 #!/usr/bin/python3
-'''
+"""
 Author: Shalom Crown
 Licence: GPL3
-'''
+"""
 
 import random
-import time
-import threading
+
 
 class Cell:
     EAST = 0
     SOUTH = 1
     WEST = 2
     NORTH = 3
-    
-    RELATIONSHIP = {EAST : (0, 1), SOUTH : (1, 0), WEST : (0, -1), NORTH : (-1, 0)}
+
+    RELATIONSHIP = {EAST: (0, 1), SOUTH: (1, 0), WEST: (0, -1), NORTH: (-1, 0)}
 
     def __init__(self, row, col):
         self.walls = [True] * 4
@@ -22,12 +21,18 @@ class Cell:
         self.visited = False
         self.row = row
         self.col = col
+        self.exitCell = None
+        self.finish = None
+        self.exit = None
+        self.start = None
+        self.entrance = None
 
-    
+
 class Maze:
     def __init__(self, width, height):
         self.width = width
         self.height = height
+        self.cells = []
         self.initialize()
 
     def initialize(self):
@@ -51,15 +56,13 @@ class Maze:
             neighbours.append(self.cells[currentCell.row + 1][currentCell.col])
         return neighbours
 
-
     def getNonEdgeCells(self):
         return [row[1:-1] for row in self.cells[1:-1]]
-    
+
     def getNeighbour(self, cell, relationship):
         rowInc, colInc = Cell.RELATIONSHIP[relationship]
         return self.cells[cell.row + rowInc][cell.col + colInc]
-    
-    
+
     def removeCommonWall(self, cellA, cellB):
         if cellA.col == cellB.col:
             if cellA.row < cellB.row:
@@ -74,14 +77,13 @@ class Maze:
                 cellB.walls[Cell.WEST] = False
             else:
                 cellA.walls[Cell.WEST] = False
-                cellB.walls[Cell.EAST] = False        
-    
-    
+                cellB.walls[Cell.EAST] = False
+
     def removeWall(self, cell, wall):
         self.removeCommonWall(cell, self.getNeighbour(cell, wall))
 
-
-    def randomizeBacktracker(self, start = (0,0), entrance=Cell.WEST, finish=None, exit=Cell.EAST, callback = None, loops = 0, finished = None):
+    def randomizeBacktracker(self, start=(0, 0), entrance=Cell.WEST, finish=None, exit_direction=Cell.EAST, callback=None,
+                             loops=0, finished=None):
         stack = []
         currentCell = self.cells[start[0]][start[1]]
         currentCell.walls[entrance] = False
@@ -92,10 +94,10 @@ class Maze:
             finish = (self.height - 1, self.width - 1)
 
         self.exitCell = self.cells[finish[0]][finish[1]]
-        self.exitCell.walls[exit] = False
+        self.exitCell.walls[exit_direction] = False
 
         self.finish = finish
-        self.exit = exit
+        self.exit = exit_direction
         self.start = start
         self.entrance = entrance
 
@@ -121,29 +123,27 @@ class Maze:
             targets = [cell for row in nonEdge for cell in row]
             targets = random.sample(targets, loops)
             for cell in targets:
-                walls = [i for i,w in enumerate(cell.walls) if w]
+                walls = [i for i, w in enumerate(cell.walls) if w]
                 if len(walls):
                     wallToRemove = random.choice(walls)
                     print(f'Removing wall {wallToRemove} in cell {cell.row}, {cell.col}')
-    
+
                     self.removeWall(cell, wallToRemove)
-                    
+
                     if callback is not None:
-                            callback()
+                        callback()
 
         if finished is not None:
             finished()
 
-
-
-    def wallToucher(self, rightHand = True, callback = None, finished = None):
+    def wallToucher(self, rightHand=True, callback=None, finished=None):
         self.removeMarks()
         startCell = currentCell = self.cells[self.start[0]][self.start[1]]
         currentDirection = (self.entrance + 2) % 4
         currentCell.visited = True
 
         print(f'exit {self.exitCell.row} {self.exitCell.col}')
-        
+
         cellOrder = range(1, -3, -1) if rightHand else range(-1, 3, 1)
 
         while currentCell.row != self.exitCell.row or currentCell.col != self.exitCell.col:
@@ -168,10 +168,6 @@ class Maze:
                 else:
                     currentCell.wallsTraversed[tryDirection] = True
 
-
         print("Finished")
         if finished is not None:
             finished()
-
-
-      
