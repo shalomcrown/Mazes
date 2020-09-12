@@ -30,8 +30,8 @@ class MazePv:
                 
                 if not 'walls3d' in cell.__dict__:
                     cell.walls3d = {}
-                    text(pos=vector(cellLeftX + cellWidth / 2,
-                                    cellTopY + cellHeight / 2,
+                    cell.text = text(pos=vector(cellLeftX + cellWidth / 2,
+                                    cellTopY + cellHeight / 2 - cellHeight / 6,
                                     0.1
                                     ),
                                     text=f"{rowIndex},{cellIndex}",
@@ -89,12 +89,26 @@ class MazePv:
         rate(maze.width * maze.height / 10)
         self.generate_walls(maze)
         
+    def deleteMaze(self, maze):
+        for _rowIndex, row in enumerate(maze.cells):
+            for _cellIndex, cell in enumerate(row):
+                if 'walls3d' in cell.__dict__:
+                    cell.text.visible = False
+                    
+                    for _dir, wall in cell.walls3d:
+                        wall.visible = False
+
+                    cell.walls3d = None
     #------------------------------------------------------------------------------------------
     
     def generate(self, _p):
+        if self.maze:
+            self.deleteMaze(self.maze);
+        
         self.maze = Maze(int(self.widthWidget.text), int(self.heightWidget.text))
         self.generate_walls(self.maze)
         self.maze.randomizeBacktracker(loops = int(self.loopWidget.text), callback=lambda: self.draw(self.maze))
+        self.generate_walls(self.maze)
         
     def what(self):
         pass
@@ -102,11 +116,12 @@ class MazePv:
     #------------------------------------------------------------------------------------------
     
     def __init__(self):
+        self.maze = None
         scene = canvas(title='Mazes',
                        width=1000, height=800,
                        center=vector(0,0,-5), background=color.cyan)
         
-        _floor = box(pos=vector(0,0,0), size=vector(2.1,2.1,0.2), background=color.gray)
+        _floor = box(pos=vector(0,0,0), size=vector(2.5,2.5,0.2), background=color.gray)
         sphere(pos=vector(0.5,0.5,0.5), radius=0.1)
         
         wtext(text="Width:")
